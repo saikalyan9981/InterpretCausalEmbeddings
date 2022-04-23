@@ -16,7 +16,7 @@ from torch.utils.data import Dataset, TensorDataset, DataLoader, RandomSampler, 
 from transformers import BertTokenizer
 from transformers import BertModel, BertPreTrainedModel, AdamW, BertConfig
 from transformers import get_linear_schedule_with_warmup
-from transformers.modeling_bert import BertPreTrainingHeads
+# from transformers.modeling_bert import BertPreTrainingHeads
 from transformers import DistilBertTokenizer
 from transformers import DistilBertModel, DistilBertPreTrainedModel
 from torch.nn import CrossEntropyLoss
@@ -30,6 +30,7 @@ from sklearn.linear_model import LogisticRegression
 
 from tqdm import tqdm
 import math
+from sentence_transformers import SentenceTransformer
 
 CUDA = (torch.cuda.device_count() > 0)
 MASK_IDX = 103
@@ -184,6 +185,7 @@ class CausalBertWrapper:
             output_attentions=False,
             output_hidden_states=False)
         if CUDA:
+            print(f"Model on GPU {torch.cuda.current_device()}")
             self.model = self.model.cuda()
 
         self.loss_weights = {
@@ -206,6 +208,10 @@ class CausalBertWrapper:
         warmup_steps = total_steps * 0.1
         scheduler = get_linear_schedule_with_warmup(
             optimizer, num_warmup_steps=warmup_steps, num_training_steps=total_steps)
+        if self.loss_weights['mlm'] == 0.0:
+            use_mlm=False
+        else:
+            use_mlm=True
 
         for epoch in range(epochs):
             losses = []
@@ -216,7 +222,7 @@ class CausalBertWrapper:
                     W_ids, W_len, W_mask, C, T, Y = batch
                     # while True:
                     self.model.zero_grad()
-                    g, Q0, Q1, g_loss, Q_loss, mlm_loss = self.model(W_ids, W_len, W_mask, C, T, Y)
+                    g, Q0, Q1, g_loss, Q_loss, mlm_loss = self.model(W_ids, W_len, W_mask, C, T, Y,use_mlm=use_mlm)
                     loss = self.loss_weights['g'] * g_loss + \
                             self.loss_weights['Q'] * Q_loss + \
                             self.loss_weights['mlm'] * mlm_loss
@@ -259,7 +265,7 @@ class CausalBertWrapper:
             Q0 = Q_probs[:, 0]
             Q1 = Q_probs[:, 1]
 
-        return np.mean(Q0 - Q1)
+        return np.mean(Q1 - Q0)
 
     def build_dataloader(self, texts, confounds, treatments=None, outcomes=None,
         tokenizer=None, sampler='random'):
