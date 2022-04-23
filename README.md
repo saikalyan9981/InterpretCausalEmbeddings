@@ -1,3 +1,9 @@
+# Interpretability
+New Code needs to be heavily refactored.
+Checkout Notebooks:
+* src/CausalBert.ipynb for training of Causal Embeddings
+* src/ZeroShotColabNewData.ipynb for the Topic Modeling
+
 # causal-text
 This is a package for computing the causal effects of text. Concretely this means algorithms for quantifying the degree of influence some user-defiend property (E.g. sentiment, respect) has on an outcome (email reply time), while controlling for potential confounds (topic, etc). 
 
